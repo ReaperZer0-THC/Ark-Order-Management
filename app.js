@@ -56,8 +56,8 @@ $('order-form').onsubmit=e=>{e.preventDefault();try{const f=new FormData(e.targe
 $('cancel-edit').onclick=()=>{editId=null;render()};el.querySelectorAll('[data-edit]').forEach(b=>b.onclick=()=>{editId=b.dataset.edit;render();scrollTo(0,0)});el.querySelectorAll('[data-del]').forEach(b=>b.onclick=()=>{if(confirm('Delete this order and its allocations?')){deleteAllocations(b.dataset.del);state.orders=state.orders.filter(o=>o.id!==b.dataset.del);save()}})}
 function deleteAllocations(id){for(const k of Object.keys(state.allocation))if(k.startsWith(id+':'))delete state.allocation[k]}
 function parseOrderText(text){
- const source=String(text||'').replace(/\r/g,'').replace(/([^\n])\s+(?=Order\s+(?:Alpha\s+)?Pairs?\s*[:：])/gi,'$1\n').replace(/\bOrder\s+(Alpha\s+)?Pairs?\s*[:：]/gi,(_,alpha)=>'Order:\n'+(alpha?'Alpha ':'')+'Pair\n');
- const header=/^#{1,6}\s+[^\n]*?(?:\[[^\]]+\]\([^)]+\)|\b(?:today|yesterday|\d{1,2}\/\d{1,2}(?:\/\d{2,4})?)\b)/i;
+ const source=String(text||'').replace(/\r/g,'').replace(/\[Role icon,[^\]]*\]\([^)]+\)/gi,'').replace(/^\s*\d+\.\s*$/gm,'').replace(/\*\*/g,'').replace(/\\\n/g,'\n').replace(/([^\n])\s+(?=Order\s+(?:Alpha\s+)?Pairs?\s*[:：])/gi,'$1\n').replace(/\bOrder\s+(Alpha\s+)?Pairs?\s*[:：]/gi,(_,alpha)=>'Order:\n'+(alpha?'Alpha ':'')+'Pair\n');
+ const header=/^#{1,6}\s+[^\n]*?(?:\b(?:Verified|Trusted|today|yesterday|\d{1,2}\/\d{1,2}(?:\/\d{2,4})?)\b)/i;
  const blocks=[];let block=[];
  for(const line of source.split('\n')){
   if(header.test(line.trim())&&block.some(x=>x.trim())){blocks.push(block.join('\n'));block=[]}
@@ -79,16 +79,16 @@ function parseOrderText(text){
   const add=(name,m,f,optionalF=0)=>{name=canonicalCreature(name.replace(/^[•*\-\s]+/,'').replace(/\s*(?:alpha|white)\s*$/i,'').trim());if(name)items.push({name,m,f,optionalF})};
   for(let line of lines){
    if(header.test(line))continue;
-   const fields=[...line.matchAll(/\b(Name|Customer|Payment|Pay|Trader|Order)\s*[:：]\s*/gi)];
+   const fields=[...line.matchAll(/\b(Name|Customer|Payment|Payement|Pay|Trader|Order(?:\s+Alpha\s+Pairs?)?)\s*[:：]?\s+/gi)];
    if(fields.length){
     for(let i=0;i<fields.length;i++){
      const key=fields[i][1].toLowerCase(),value=line.slice(fields[i].index+fields[i][0].length,i+1<fields.length?fields[i+1].index:line.length).trim();
      if(key==='name'||key==='customer')customer=value.replace(/^<@!?(\d+)>$/,'$1')||customer;
-     else if(key==='payment'||key==='pay')payment=value;
+     else if(key==='payment'||key==='pay'||key==='payement')payment=value;
      else if(key==='trader')trader=value;
-     else if(key==='order'&&value)line=value;
+     else if(key.startsWith('order')&&value)line=value;
     }
-    if(!fields.some(x=>x[1].toLowerCase()==='order'))continue;
+    if(!fields.some(x=>x[1].toLowerCase().startsWith('order')))continue;
    }
    if(/^(?:order|alpha|white|rainbow)\s*[:：]?\s*$/i.test(line))continue;
    if(/^(?:order\s+)?(?:alpha\s+)?pairs?\s*[:：]?\s*$/i.test(line)){pairMode=true;continue;}
