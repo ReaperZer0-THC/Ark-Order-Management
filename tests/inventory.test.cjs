@@ -18,6 +18,7 @@ state.stock.Basilisk={m:2,f:2};
 assert.equal(availability(order),false,'other reservations must reduce availability');
 state.allocation['o1:0']={m:1,f:1};
 state.allocation['o1:1']={m:1,f:1};
+state.stock.Basilisk={m:3,f:3};
 assert.equal(allocated(order),4);
 assert.equal(reserved('Basilisk','m'),3);
 assert.equal(availability(order),true,'own reservations count toward availability');
