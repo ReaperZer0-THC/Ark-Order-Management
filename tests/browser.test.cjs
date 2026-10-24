@@ -36,6 +36,9 @@ const server=http.createServer((req,res)=>{
   assert.equal(saved.orders[0].status,'Completed');
   assert.equal(saved.stock.Basilisk.m,0);assert.equal(saved.stock.Basilisk.f,0);
   assert.deepEqual(saved.allocation,{});
+  await page.locator('#restore-file').setInputFiles({name:'backup.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify(saved))});
+  await page.locator('#restore').click();
+  assert.equal(await page.evaluate(()=>JSON.parse(localStorage.getItem('thc-phase1-v3')).orders[0].status),'Completed','Restored backup retains status');
   // Browser persistence: reload and confirm completed order remains.
   await page.reload();
   await page.getByRole('button',{name:'Orders',exact:true}).click();
