@@ -7,6 +7,8 @@ const fixtureNames=['Basilisk','Ankylosaurus','Ossidon','Yutyrannus','Griffin','
 for(const n of fixtureNames)assert(names.includes(n),'Missing creature '+n);
 for(const item of registry.species){
  assert(item.name&&typeof item.name==='string');
- assert(Array.isArray(item.breeding)&&item.breeding.every(x=>['Egg','Embryo'].includes(x)));
+ assert(Array.isArray(item.breeding)&&item.breeding.every(x=>['Egg','Embryo','Impregnation'].includes(x)));
 }
+const expected={Karkinos:'Embryo',Gasbags:'Embryo',Reaper:'Impregnation','Reaper V2':'Impregnation','Brontosaurus V2':'Egg',Brontosaurus:'Egg',Basilisk:'Egg','Tek Rex':'Egg'};
+for(const [name,type] of Object.entries(expected))assert.equal(registry.species.find(x=>x.name===name)?.breeding[0],type,name+' classification');
 console.log('PASS '+registry.species.length+' registry entries; '+fixtureNames.length+' fixture names covered; no duplicates');
