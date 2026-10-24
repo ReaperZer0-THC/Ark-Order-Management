@@ -58,7 +58,7 @@ function deleteAllocations(id){for(const k of Object.keys(state.allocation))if(k
 
 function normalizeDiscordBatch(input){
  const aliases={'kakinos':'Karkinos','dreadnoutus':'Dreadnoughtus','gigadesmo':'Gigadesmodus','yuti':'Yutyrannus','argie':'Argentavis','anky':'Ankylosaurus','rockdrake':'Rock Drake','wooly rhino':'Woolly Rhino','normal giga':'Giganotosaurus','ab spino':'Aberrant Spino','fire wyv':'Fire Wyvern','light wyv':'Lightning Wyvern','ice wyv':'Ice Wyvern','gasbag':'Gasbags'};
- const esc=x=>x.replace(/[.*+?^$()|[\]{}\\]/g,'\\function parseOrderText(text){').replace(/\s+/g,'\\s+');
+ const esc=x=>x.replace(/[^a-z0-9 ]/gi,'\\ const esc=x=>x.replace(/[.*+?^$()|[\]{}\\]/g,'\\function parseOrderText(text){').replace(/\s+/g,'\\s+');').replace(/\s+/g,'\\s+');
  const all=[...(creatureRegistry.species||[]).map(x=>x.name),...Object.keys(creatureRegistry.aliases||{}),...Object.keys(aliases)];
  const names=[...new Set(all)].sort((a,b)=>b.length-a.length);
  const pattern=new RegExp('(?<![a-z0-9])('+names.map(esc).join('|')+')(?![a-z0-9])','gi');
