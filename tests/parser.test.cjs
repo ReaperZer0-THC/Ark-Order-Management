@@ -5,7 +5,7 @@ const source=fs.readFileSync('app.js','utf8');
 const start=source.indexOf('function parseOrderText(text){');
 const end=source.indexOf('function renderImport(el){');
 assert(start>=0&&end>start,'Parser function not found');
-const parse=Function('canonicalCreature',source.slice(start,end)+';return parseOrderText')(x=>x);
+const parse=Function('canonicalCreature','creatureRegistry','creatureKnown',source.slice(start,end)+';return parseOrderText')(x=>x,{species:[]},()=>true);
 const cases=[
  {name:'separate same-customer posts',text:'### ZOUFRIYA948[Member](https://discord.com) 10/19/2026\nName: ZOUFRIYA948\nOrder:\nPaire +1F Basilisk\nPaire +1F Ankylosaurus\nPayment: 1500 Tek\n### ZOUFRIYA948[Member](https://discord.com) 10/21/2026\nName: ZOUFRIYA948\nOrder:\nPaire +1F Snow Owl\nPayment: 1500 Tek',count:2,totals:[6,3]},
  {name:'optional females before and after names',text:'Name: Duster\nOrder:\nPair +1F if available Aberrant Spino\nPair +1F Karkinos if available\nPayment: 1500 Tek',count:1,totals:[4],optional:[2]},
