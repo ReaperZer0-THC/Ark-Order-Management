@@ -1,0 +1,25 @@
+// Run: node tests/inventory.test.cjs
+const fs=require('node:fs'),assert=require('node:assert/strict');
+const src=fs.readFileSync('app.js','utf8');
+const take=(start,end)=>{const a=src.indexOf(start),b=src.indexOf(end,a);assert(a>=0&&b>a,'Missing function '+start);return src.slice(a,b)};
+const code=take('function active(o){','function category(n){')+take('function availability(o){','function renderFulfillment(el){');
+const setup=Function('state',code+';return {availability,allocated,reserved,stock,totals}'); 
+const order={id:'o1',status:'Received',items:[{name:'Basilisk',m:1,f:1},{name:'Basilisk',m:1,f:1}]};
+const other={id:'o2',status:'Received',items:[{name:'Basilisk',m:1,f:1}]};
+const state={orders:[order,other],stock:{Basilisk:{m:2,f:2}},allocation:{},categories:{}};
+const {availability,allocated,reserved,stock,totals}=setup(state);
+assert.equal(availability(order),true,'duplicate lines must aggregate');
+state.stock.Basilisk={m:1,f:1};
+assert.equal(availability(order),false,'duplicate lines must not double spend');
+state.stock.Basilisk={m:3,f:3};
+state.allocation['o2:0']={m:1,f:1};
+assert.equal(availability(order),true,'available after another order reserves');
+state.stock.Basilisk={m:2,f:2};
+assert.equal(availability(order),false,'other reservations must reduce availability');
+state.allocation['o1:0']={m:1,f:1};
+state.allocation['o1:1']={m:1,f:1};
+assert.equal(allocated(order),4);
+assert.equal(reserved('Basilisk','m'),3);
+assert.equal(availability(order),true,'own reservations count toward availability');
+assert.equal(totals()[0].m,3);
+console.log('PASS duplicate species, reservation accounting, own allocations and totals');
