@@ -56,7 +56,7 @@ $('order-form').onsubmit=e=>{e.preventDefault();try{const f=new FormData(e.targe
 $('cancel-edit').onclick=()=>{editId=null;render()};el.querySelectorAll('[data-edit]').forEach(b=>b.onclick=()=>{editId=b.dataset.edit;render();scrollTo(0,0)});el.querySelectorAll('[data-del]').forEach(b=>b.onclick=()=>{if(confirm('Delete this order and its allocations?')){deleteAllocations(b.dataset.del);state.orders=state.orders.filter(o=>o.id!==b.dataset.del);save()}})}
 function deleteAllocations(id){for(const k of Object.keys(state.allocation))if(k.startsWith(id+':'))delete state.allocation[k]}
 function parseOrderText(text){
- const source=String(text||'').replace(/\r/g,'').replace(/\bOrder\s+(Alpha\s+)?Pairs?\s*[:：]/gi,(_,alpha)=>'Order:\n'+(alpha?'Alpha ':'')+'Pair\n');
+ const source=String(text||'').replace(/\r/g,'').replace(/([^\n])\s+(?=Order\s+(?:Alpha\s+)?Pairs?\s*[:：])/gi,'$1\n').replace(/\bOrder\s+(Alpha\s+)?Pairs?\s*[:：]/gi,(_,alpha)=>'Order:\n'+(alpha?'Alpha ':'')+'Pair\n');
  const header=/^#{1,6}\s+[^\n]*?(?:\[[^\]]+\]\([^)]+\)|\b(?:today|yesterday|\d{1,2}\/\d{1,2}(?:\/\d{2,4})?)\b)/i;
  const blocks=[];let block=[];
  for(const line of source.split('\n')){
