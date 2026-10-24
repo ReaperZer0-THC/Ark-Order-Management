@@ -41,29 +41,69 @@ $('order-form').onsubmit=e=>{e.preventDefault();try{const f=new FormData(e.targe
 $('cancel-edit').onclick=()=>{editId=null;render()};el.querySelectorAll('[data-edit]').forEach(b=>b.onclick=()=>{editId=b.dataset.edit;render();scrollTo(0,0)});el.querySelectorAll('[data-del]').forEach(b=>b.onclick=()=>{if(confirm('Delete this order and its allocations?')){deleteAllocations(b.dataset.del);state.orders=state.orders.filter(o=>o.id!==b.dataset.del);save()}})}
 function deleteAllocations(id){for(const k of Object.keys(state.allocation))if(k.startsWith(id+':'))delete state.allocation[k]}
 function parseOrderText(text){
- const chunks=text.split(/(?=^\s*(?:Name\s*[:：]|Customer\s*[:：]))/gim).filter(x=>x.trim());const blocks=chunks.length?chunks:[text];const results=[];
- for(const raw of blocks){const lines=raw.split(/\r?\n/).map(x=>x.trim()).filter(Boolean);let customer='',payment='',trader='',items=[],issues=[],pairMode=false;
- for(let line of lines){const m=line.match(/^(?:Name|Customer)\s*[:：]\s*(.*)$/i);if(m){customer=m[1].trim();continue}const pay=line.match(/^(?:Payment|Pay)\s*[:：]\s*(.*)$/i);if(pay){payment=pay[1].trim();continue}const tr=line.match(/^Trader\s*[:：]\s*(.*)$/i);if(tr){trader=tr[1].trim();continue}if(/^order\s*[:：]?$/i.test(line))continue;
- line=line.replace(/^[•*\-\d.)\s]+/,'').trim();if(!line)continue;
- let match=line.match(/^(?:(\d+)\s*)?(?:pairs?|paire?s?)\s*(?:\+\s*(\d+)\s*f(?:emales?)?)?\s*[:\-]?\s+(.+)$/i);
- if(match){const count=+(match[1]||1),extra=+(match[2]||0),conditional=/if available/i.test(match[3]),name=match[3].replace(/\s*(?:if available|si disponible).*$/i,'').trim();items.push({name,m:count,f:count+(conditional?0:extra),optionalF:conditional?extra:0});continue}
- match=line.match(/^(.+?)\s*[,|]\s*(\d+)\s*(?:m|male)?\s*[,|]\s*(\d+)\s*(?:f|female)?$/i);
- if(match){items.push({name:match[1].trim(),m:+match[2],f:+match[3],optionalF:0});continue}
- match=line.match(/^(.+?)\s*[-–:]\s*(\d+)\s*m\s*[,/]?\s*(\d+)\s*f$/i);
- if(match){items.push({name:match[1].trim(),m:+match[2],f:+match[3],optionalF:0});continue}
- if(/^all\s+pairs?$/i.test(line)){pairMode=true;continue}
- if(pairMode&&/^[\p{L}\p{N} '\-]+$/u.test(line)){items.push({name:line,m:1,f:1,optionalF:0});continue}
- if(/^(?:https?:\/\/|<@|#)/.test(line))continue;
- issues.push('Unrecognized: '+line);
+ const source=String(text||'').replace(/\r/g,'');
+ const header=/^#{1,6}\s+[^\n]*?(?:\[[^\]]+\]\([^)]+\)|\b(?:today|yesterday|\d{1,2}\/\d{1,2}(?:\/\d{2,4})?)\b)/i;
+ const blocks=[];let block=[];
+ for(const line of source.split('\n')){
+  if(header.test(line.trim())&&block.some(x=>x.trim())){blocks.push(block.join('\n'));block=[]}
+  else if(/^\s*(?:Name|Customer)\s*[:：]/i.test(line)&&block.some(x=>/^\s*(?:Name|Customer)\s*[:：]/i.test(x))){blocks.push(block.join('\n'));block=[]}
+  block.push(line);
  }
- if(!customer)issues.push('Customer missing');if(!items.length)issues.push('No recognizable creature lines');results.push({customer,payment,trader,items,issues,raw});
- }return results;
+ if(block.some(x=>x.trim()))blocks.push(block.join('\n'));
+ const results=[];
+ for(const raw of blocks){
+  const lines=raw.split('\n').map(x=>x.trim()).filter(Boolean);
+  let customer='',payment='',trader='',items=[],issues=[],pairMode=false,created='';
+  const headerLine=lines.find(x=>header.test(x));
+  if(headerLine){
+   const who=headerLine.match(/^#{1,6}\s+([^\[\n]+?)(?=\[|(?:\s+\d{1,2}\/\d{1,2})|(?:\s+Yesterday\b)|(?:\s+Today\b)|$)/i);
+   if(who)customer=who[1].trim().replace(/\s+$/,'');
+   const date=headerLine.match(/\b(\d{1,2})\/(\d{1,2})(?:\/(\d{2,4}))?\b/);
+   if(date&&date[3]){let y=+date[3];if(y<100)y+=2000;created=[y,String(+date[1]).padStart(2,'0'),String(+date[2]).padStart(2,'0')].join('-')}
+  }
+  const add=(name,m,f,optionalF=0)=>{name=canonicalCreature(name.replace(/^[•*\-\s]+/,'').replace(/\s*(?:alpha|white)\s*$/i,'').trim());if(name)items.push({name,m,f,optionalF})};
+  for(let line of lines){
+   if(header.test(line))continue;
+   const fields=[...line.matchAll(/\b(Name|Customer|Payment|Pay|Trader|Order)\s*[:：]\s*/gi)];
+   if(fields.length){
+    for(let i=0;i<fields.length;i++){
+     const key=fields[i][1].toLowerCase(),value=line.slice(fields[i].index+fields[i][0].length,i+1<fields.length?fields[i+1].index:line.length).trim();
+     if(key==='name'||key==='customer')customer=value.replace(/^<@!?(\d+)>$/,'$1')||customer;
+     else if(key==='payment'||key==='pay')payment=value;
+     else if(key==='trader')trader=value;
+     else if(key==='order'&&value)line=value;
+    }
+    if(!fields.some(x=>x[1].toLowerCase()==='order'))continue;
+   }
+   if(/^(?:order|alpha|white|rainbow)\s*[:：]?\s*$/i.test(line))continue;
+   if(/^all\s+(?:pair|pairs|paire|paires)(?:\s+alpha)?$/i.test(line)){pairMode=true;continue}
+   if(/^(?:https?:\/\/|<@|#)/.test(line))continue;
+   if(/^(?:note|missing|remark)\b/i.test(line)){issues.push('Note: '+line);continue}
+   line=line.replace(/^[•*\-\d.)\s]+/,'').trim();
+   if(!line)continue;
+   let match=line.match(/^(.+?)\s*[,|]\s*(\d+)\s*(?:m|male)?\s*[,|]\s*(\d+)\s*(?:f|female)?(?:\s*[,|]\s*(\d+))?$/i);
+   if(match){add(match[1],+match[2],+match[3],+(match[4]||0));continue}
+   match=line.match(/^(.+?)\s*[-–:]\s*(\d+)\s*m\s*[,/]?\s*(\d+)\s*f$/i);
+   if(match){add(match[1],+match[2],+match[3]);continue}
+   // Supports both "Pair +1F Basilisk" and "Basilisk pair +1F".
+   match=line.match(/^(?:(\d+)\s*)?(?:pairs?|paires?)\s*(?:\+\s*(\d+)\s*f(?:emales?)?)?\s*[:\-]?\s+(.+)$/i);
+   if(match){const extra=+(match[2]||0),conditional=/\b(?:if available|si disponible)\b/i.test(match[3]);add(match[3].replace(/\s*(?:if available|si disponible).*$/i,''),+(match[1]||1),+(match[1]||1)+(conditional?0:extra),conditional?extra:0);continue}
+   match=line.match(/^(.+?)\s+(?:pairs?|paires?)\s*(?:\+\s*(\d+)\s*f(?:emales?)?)?\s*(if available|si disponible)?$/i);
+   if(match){const extra=+(match[2]||0);add(match[1],1,1+(match[3]?0:extra),match[3]?extra:0);continue}
+   if(pairMode&&/^[\p{L}\p{N} '\-]+$/u.test(line)){add(line,1,1);continue}
+   issues.push('Unrecognized: '+line);
+  }
+  if(!customer)issues.push('Customer missing');
+  if(!items.length)issues.push('No recognizable creature lines');
+  results.push({customer,payment,trader,created,items,issues,raw});
+ }
+ return results;
 }
 function renderImport(el){el.innerHTML=`<h2>Import Discord orders</h2><div class="card"><h3>Paste text or screenshot</h3><p class="muted">Paste Discord message text, or paste/upload a screenshot. Image OCR runs in your browser using Tesseract.js (downloaded from a CDN on first use).</p><label>Source text</label><textarea id="import-input" placeholder="Name: @Customer\nPaire + 1 F Basilisk\nPair Snow Owl\nPayment: 1500 Tek">${safe(importText)}</textarea><div class="flex"><button id="parse">Parse text</button><button class="secondary" id="paste-image">Read clipboard image</button><label style="margin:0">Upload screenshot <input id="ocr-file" type="file" accept="image/png,image/jpeg,image/webp"></label></div><p id="ocr-status" class="muted"></p></div><div id="previews"></div>`;
 $('import-input').oninput=e=>importText=e.target.value;$('parse').onclick=()=>{importCandidates=parseOrderText(importText);renderPreviews()};$('ocr-file').onchange=e=>{if(e.target.files[0])recognize(e.target.files[0])};$('paste-image').onclick=async()=>{try{const clips=await navigator.clipboard.read();for(const c of clips){const mime=c.types.find(t=>t.startsWith('image/'));if(mime){await recognize(await c.getType(mime));return}}notify('No image on clipboard. Upload a screenshot instead.')}catch{notify('Clipboard image access unavailable. Use file upload.')}};
 renderPreviews()}
 async function recognize(file){if(ocrBusy)return;ocrBusy=true;const status=$('ocr-status');status.textContent='Loading OCR…';try{if(!globalThis.Tesseract){await new Promise((resolve,reject)=>{const s=document.createElement('script');s.src='https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js';s.onload=resolve;s.onerror=reject;document.head.append(s)})}status.textContent='Reading screenshot locally…';const worker=await Tesseract.createWorker('eng');try{const result=await worker.recognize(file);importText=result.data.text;$('import-input').value=importText;importCandidates=parseOrderText(importText);renderPreviews();status.textContent='OCR finished. Review the extracted text and any warnings before importing.'}finally{await worker.terminate()}}catch(e){status.textContent='OCR failed or unavailable: '+e.message}finally{ocrBusy=false}}
-function renderPreviews(){const root=$('previews');if(!root)return;root.innerHTML=importCandidates.map((c,i)=>`<div class="card"><h3>Detected order ${i+1}</h3><div class="grid"><div><label>Customer</label><input data-i="${i}" data-field="customer" value="${safe(c.customer)}"></div><div><label>Payment</label><input data-i="${i}" data-field="payment" value="${safe(c.payment)}"></div></div><label>Items (name, male, female, optional females)</label><textarea data-i="${i}" data-field="lines">${safe(c.items.map(x=>`${x.name}, ${x.m}, ${x.f}${x.optionalF?', '+x.optionalF:''}`).join('\n'))}</textarea>${c.issues.length?`<div class="note">${c.issues.map(safe).join('<br>')}</div>`:''}<button data-import="${i}">Import this order</button></div>`).join('');root.querySelectorAll('[data-field]').forEach(x=>x.oninput=()=>{const c=importCandidates[+x.dataset.i];c[x.dataset.field]=x.value});root.querySelectorAll('[data-import]').forEach(b=>b.onclick=()=>{const c=importCandidates[+b.dataset.import];try{const items=parseLines(c.lines??c.items.map(x=>`${x.name}, ${x.m}, ${x.f}${x.optionalF?', '+x.optionalF:''}`).join('\n'));if(!c.customer.trim())throw Error('Enter customer name');const sig=o=>JSON.stringify([o.customer.toLowerCase().trim(),o.items.map(i=>[i.name.toLowerCase().trim(),i.m,i.f])]);const o={id:uid(),customer:c.customer.trim(),payment:c.payment,discordId:'',created:'',status:'Received',source:c.raw,items};if(state.orders.some(x=>sig(x)===sig(o))&&!confirm('Possible duplicate order. Import anyway?'))return;state.orders.push(o);save();notify('Order imported. Review Production to collect items.')}catch(e){alert(e.message)}})}
+function renderPreviews(){const root=$('previews');if(!root)return;root.innerHTML=importCandidates.map((c,i)=>`<div class="card"><h3>Detected order ${i+1}</h3><div class="grid"><div><label>Customer</label><input data-i="${i}" data-field="customer" value="${safe(c.customer)}"></div><div><label>Payment</label><input data-i="${i}" data-field="payment" value="${safe(c.payment)}"></div></div><label>Items (name, male, female, optional females)</label><textarea data-i="${i}" data-field="lines">${safe(c.items.map(x=>`${x.name}, ${x.m}, ${x.f}${x.optionalF?', '+x.optionalF:''}`).join('\n'))}</textarea>${c.issues.length?`<div class="note">${c.issues.map(safe).join('<br>')}</div>`:''}<button data-import="${i}">Import this order</button></div>`).join('');root.querySelectorAll('[data-field]').forEach(x=>x.oninput=()=>{const c=importCandidates[+x.dataset.i];c[x.dataset.field]=x.value});root.querySelectorAll('[data-import]').forEach(b=>b.onclick=()=>{const c=importCandidates[+b.dataset.import];try{const items=parseLines(c.lines??c.items.map(x=>`${x.name}, ${x.m}, ${x.f}${x.optionalF?', '+x.optionalF:''}`).join('\n'));if(!c.customer.trim())throw Error('Enter customer name');const sig=o=>JSON.stringify([o.customer.toLowerCase().trim(),o.items.map(i=>[i.name.toLowerCase().trim(),i.m,i.f])]);const o={id:uid(),customer:c.customer.trim(),payment:c.payment,discordId:'',created:c.created||'',status:'Received',source:c.raw,items};if(state.orders.some(x=>sig(x)===sig(o))&&!confirm('Possible duplicate order. Import anyway?'))return;state.orders.push(o);save();notify('Order imported. Review Production to collect items.')}catch(e){alert(e.message)}})}
 function renderProduction(el){const a=totals();el.innerHTML=`<h2>Production</h2><div class="note">Egg / Embryo categories have not been verified. Set each creature's category manually. Unverified creatures are kept separate, not guessed.</div><div class="flex">${['Eggs','Embryos','Unverified'].map(t=>`<button class="${prod===t?'active':'secondary'}" data-group="${t}">${t}</button>`).join('')}</div><div id="production-rows"></div>`;el.querySelectorAll('[data-group]').forEach(b=>b.onclick=()=>{prod=b.dataset.group;renderProduction(el)});
 const filtered=a.filter(x=>category(x.name)===(prod==='Eggs'?'Egg':prod==='Embryos'?'Embryo':'Unverified'));
 $('production-rows').innerHTML=filtered.length?filtered.map(x=>`<div class="card"><div class="flex between"><strong>${safe(x.name)}</strong><span>${stock(x.name,'m')+stock(x.name,'f')} / ${x.m+x.f} collected</span><button data-all="${safe(x.name)}">Collected all</button></div><details><summary>Male/female details · ${remaining(x)} still needed</summary><div class="grid"><div><label>Male (${x.m} required; ${reserved(x.name,'m')} allocated)</label><input type="number" min="${reserved(x.name,'m')}" data-name="${safe(x.name)}" data-sex="m" value="${stock(x.name,'m')}"></div><div><label>Female (${x.f} required; ${reserved(x.name,'f')} allocated)</label><input type="number" min="${reserved(x.name,'f')}" data-name="${safe(x.name)}" data-sex="f" value="${stock(x.name,'f')}"></div></div><label>Reproduction category</label><select data-category="${safe(x.name)}">${['Unverified','Egg','Embryo'].map(y=>`<option ${category(x.name)===y?'selected':''}>${y}</option>`).join('')}</select><p class="muted">Customers: ${state.orders.filter(active).filter(o=>o.items.some(i=>i.name===x.name)).map(o=>safe(o.customer)).join(', ')}</p></details></div>`).join(''):'<div class="card">No creatures in this category yet.</div>';
