@@ -18,20 +18,23 @@ const server=http.createServer((req,res)=>{
   page.on('dialog',d=>d.accept());
   const errors=[];page.on('pageerror',e=>errors.push(e.message));
   await page.goto('http://127.0.0.1:'+server.address().port+'/');
-  await page.getByRole('button',{name:'Import',exact:true}).click();
+  await page.locator('#quick-import').click();
   await page.locator('#import-input').fill('Name: Acceptance Test\nOrder:\nPair Basilisk\nPayment: 200 Tek');
   await page.locator('#parse').click();
   assert.equal(await page.locator('[data-import]').count(),1);
   await page.locator('[data-import]').click();
-  await page.getByRole('button',{name:'Production',exact:true}).click();
+  await page.locator('[data-tab="production"]').click();
+  await page.locator('[data-group="Eggs"]').click();
   await page.locator('[data-all="Basilisk"]').click();
-  await page.getByRole('button',{name:'Fulfillment',exact:true}).click();
+  await page.locator('[data-tab="fulfillment"]').click();
   await page.locator('[data-allocate]').click();
   assert.match(await page.locator('#view').innerText(),/2\/2 allocated/);
   await page.locator('[data-status]').selectOption('Completed');
-  await page.getByRole('button',{name:'Orders',exact:true}).click();
+  await page.locator('#more-actions').click();
+  await page.locator('[data-tab="orders"]').click();
   assert.match(await page.locator('#view').innerText(),/Completed/);
-  await page.getByRole('button',{name:'Backup',exact:true}).click();
+  await page.locator('#more-actions').click();
+  await page.locator('[data-tab="backup"]').click();
   const saved=await page.evaluate(()=>JSON.parse(localStorage.getItem('thc-phase1-v3')));
   assert.equal(saved.orders[0].status,'Completed');
   assert.equal(saved.stock.Basilisk.m,0);assert.equal(saved.stock.Basilisk.f,0);
@@ -41,7 +44,8 @@ const server=http.createServer((req,res)=>{
   assert.equal(await page.evaluate(()=>JSON.parse(localStorage.getItem('thc-phase1-v3')).orders[0].status),'Completed','Restored backup retains status');
   // Browser persistence: reload and confirm completed order remains.
   await page.reload();
-  await page.getByRole('button',{name:'Orders',exact:true}).click();
+  await page.locator('#more-actions').click();
+  await page.locator('[data-tab="orders"]').click();
   assert.match(await page.locator('#view').innerText(),/Acceptance Test/);
   assert.equal(errors.length,0,'Browser console exceptions: '+errors.join('; '));
   console.log('PASS Chromium import -> production -> allocation -> completion -> persistence');
