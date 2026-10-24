@@ -1,0 +1,7 @@
+Name: @ExampleTrader
+Order:
+Paire + 1 F Basilisk
+Pair Ankylosaurus
+Pair Snow Owl
+Payment: 700 Tek
+Trader: Open
