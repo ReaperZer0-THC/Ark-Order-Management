@@ -87,7 +87,7 @@ function parseOrderText(text){
    if(match){add(match[1],+match[2],+match[3]);continue}
    // Supports both "Pair +1F Basilisk" and "Basilisk pair +1F".
    match=line.match(/^(?:(\d+)\s*)?(?:pairs?|paires?)\s*(?:\+\s*(\d+)\s*f(?:emales?)?)?\s*[:\-]?\s+(.+)$/i);
-   if(match){const extra=+(match[2]||0),conditional=/\b(?:if available|si disponible)\b/i.test(match[3]);add(match[3].replace(/\s*(?:if available|si disponible).*$/i,''),+(match[1]||1),+(match[1]||1)+(conditional?0:extra),conditional?extra:0);continue}
+   if(match){const extra=+(match[2]||0),conditional=/\b(?:if available|si disponible)\b/i.test(match[3]);add(match[3].replace(/^\s*(?:if available|si disponible)\s*/i,'').replace(/\s*(?:if available|si disponible).*$/i,''),+(match[1]||1),+(match[1]||1)+(conditional?0:extra),conditional?extra:0);continue}
    match=line.match(/^(.+?)\s+(?:pairs?|paires?)\s*(?:\+\s*(\d+)\s*f(?:emales?)?)?\s*(if available|si disponible)?$/i);
    if(match){const extra=+(match[2]||0);add(match[1],1,1+(match[3]?0:extra),match[3]?extra:0);continue}
    if(pairMode&&/^[\p{L}\p{N} '\-]+$/u.test(line)){add(line,1,1);continue}
