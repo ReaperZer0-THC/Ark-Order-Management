@@ -56,7 +56,7 @@ $('order-form').onsubmit=e=>{e.preventDefault();try{const f=new FormData(e.targe
 $('cancel-edit').onclick=()=>{editId=null;render()};el.querySelectorAll('[data-edit]').forEach(b=>b.onclick=()=>{editId=b.dataset.edit;render();scrollTo(0,0)});el.querySelectorAll('[data-del]').forEach(b=>b.onclick=()=>{if(confirm('Delete this order and its allocations?')){deleteAllocations(b.dataset.del);state.orders=state.orders.filter(o=>o.id!==b.dataset.del);save()}})}
 function deleteAllocations(id){for(const k of Object.keys(state.allocation))if(k.startsWith(id+':'))delete state.allocation[k]}
 function parseOrderText(text){
- const source=String(text||'').replace(/\r/g,'');
+ const source=String(text||'').replace(/\r/g,'').replace(/\b(Order\s+Alpha\s+Pairs?|Order\s+Pairs?)\s*[:：]/gi,'Order: $1\n');
  const header=/^#{1,6}\s+[^\n]*?(?:\[[^\]]+\]\([^)]+\)|\b(?:today|yesterday|\d{1,2}\/\d{1,2}(?:\/\d{2,4})?)\b)/i;
  const blocks=[];let block=[];
  for(const line of source.split('\n')){
@@ -91,6 +91,7 @@ function parseOrderText(text){
     if(!fields.some(x=>x[1].toLowerCase()==='order'))continue;
    }
    if(/^(?:order|alpha|white|rainbow)\s*[:：]?\s*$/i.test(line))continue;
+   if(/^(?:order\s+)?(?:alpha\s+)?pairs?\s*[:：]?\s*$/i.test(line)){pairMode=true;continue;}
    if(/^all\s+(?:pair|pairs|paire|paires)(?:\s+alpha)?$/i.test(line)){pairMode=true;continue}
    if(/^(?:https?:\/\/|<@|#)/.test(line))continue;
    if(/^(?:note|missing|remark)\b/i.test(line)){issues.push('Note: '+line);continue}
