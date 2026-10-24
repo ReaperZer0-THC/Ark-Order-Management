@@ -2,10 +2,10 @@
 const fs=require('node:fs');
 const assert=require('node:assert/strict');
 const source=fs.readFileSync('app.js','utf8');
-const start=source.indexOf('function parseOrderText(text){');
+const start=source.indexOf('function normalizeDiscordBatch(input){');
 const end=source.indexOf('function renderImport(el){');
 assert(start>=0&&end>start,'Parser function not found');
-const parse=Function('canonicalCreature','creatureRegistry','creatureKnown',source.slice(start,end)+';return parseOrderText')(x=>x,{species:[]},()=>true);
+const registry=JSON.parse(fs.readFileSync('creature-registry.json','utf8'));const norm=x=>String(x||'').toLowerCase().replace(/[^a-z0-9]+/g,' ').trim();const canonical=x=>registry.species.find(y=>norm(y.name)===norm(x))?.name||registry.aliases[x]||x;const known=x=>registry.species.some(y=>norm(y.name)===norm(x));const parse=Function('canonicalCreature','creatureRegistry','creatureKnown','normalizedCreature',source.slice(start,end)+';return parseOrderText')(canonical,registry,known,norm);
 const cases=[
  {name:'Samy Alpha Pair heading',text:'Name: **@Samy** y\nOrder Alpha Pair:\nBurrowbuck\nCarcharodontosaurus\nIce Wyvern\nGiganotosaurus\nReaper v2\nPayment: 1000 Tek Ceilings',count:1,totals:[10]},
  {name:'Samy compact Alpha Pair order',text:'Name: @Samy y Order Alpha Pair: Burrowbuck\nCarcharodontosaurus\nIce Wyvern\nGiganotosaurus\nReaper v2\nPayment: 1000 Tek Ceilings',count:1,totals:[10]},

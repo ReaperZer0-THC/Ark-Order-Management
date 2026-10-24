@@ -55,9 +55,48 @@ function renderOrders(el){const o=state.orders.find(x=>x.id===editId);el.innerHT
 $('order-form').onsubmit=e=>{e.preventDefault();try{const f=new FormData(e.target),items=parseLines(String(f.get('items'))),x={id:o?.id||uid(),customer:String(f.get('customer')).trim(),discordId:String(f.get('discordId')).trim(),payment:String(f.get('payment')).trim(),created:String(f.get('created')),status:String(f.get('status')),source:String(f.get('source')),items};if(!x.customer)throw Error('Customer is required');if(o){if(JSON.stringify(o.items)!==JSON.stringify(items))deleteAllocations(o.id);state.orders=state.orders.map(a=>a.id===o.id?x:a)}else state.orders.push(x);editId=null;save();notify('Order saved locally')}catch(e){alert(e.message)}};
 $('cancel-edit').onclick=()=>{editId=null;render()};el.querySelectorAll('[data-edit]').forEach(b=>b.onclick=()=>{editId=b.dataset.edit;render();scrollTo(0,0)});el.querySelectorAll('[data-del]').forEach(b=>b.onclick=()=>{if(confirm('Delete this order and its allocations?')){deleteAllocations(b.dataset.del);state.orders=state.orders.filter(o=>o.id!==b.dataset.del);save()}})}
 function deleteAllocations(id){for(const k of Object.keys(state.allocation))if(k.startsWith(id+':'))delete state.allocation[k]}
+
+function normalizeDiscordBatch(input){
+ const aliases={'kakinos':'Karkinos','dreadnoutus':'Dreadnoughtus','gigadesmo':'Gigadesmodus','yuti':'Yutyrannus','argie':'Argentavis','anky':'Ankylosaurus','rockdrake':'Rock Drake','wooly rhino':'Woolly Rhino','normal giga':'Giganotosaurus','ab spino':'Aberrant Spino','fire wyv':'Fire Wyvern','light wyv':'Lightning Wyvern','ice wyv':'Ice Wyvern','gasbag':'Gasbags','bronto v2':'Brontosaurus V2'};
+ const esc=x=>x.replace(/[^a-z0-9 ]/gi,c=>'\\'+c).replace(/\s+/g,'\\s+');
+ const all=[...(creatureRegistry.species||[]).map(x=>x.name),...Object.keys(creatureRegistry.aliases||{}),...Object.keys(aliases)];
+ const names=[...new Set(all)].sort((a,b)=>b.length-a.length);
+ const pattern=new RegExp('(?<![a-z0-9])('+names.map(esc).join('|')+')(?![a-z0-9])','gi');
+ let text=String(input||'').replace(/\[Role icon,[^\]]*\]\([^)]+\)/gi,' ').replace(/\*\*/g,'').replace(/\\\n/g,'\n').replace(/^\s*\d+\.\s*$/gm,'');
+ const blocks=text.split(/(?=^\s*#{1,6}\s+[^\n]*(?:Verified|Trusted|Yesterday|Today|\d{1,2}\/\d{1,2}\/\d{2,4}))/gmi).filter(x=>x.trim());
+ if(blocks.length<2)return input;
+ return blocks.map(raw=>{
+  const header=raw.match(/^\s*#{1,6}\s+([^\n]+)/m);
+  const date=header?.[1].match(/\d{1,2}\/\d{1,2}\/\d{2,4}/)?.[0]||'';
+  const author=header?.[1].split(/\b(?:Verified|Trusted|Yesterday|Today)\b|\d{1,2}\/\d{1,2}\/\d{2,4}/i)[0].replace(/\[[^\]]+\]/g,'').replace(/[, ]+$/,'').trim()||'';
+  const body=raw.replace(/^\s*#{1,6}\s+[^\n]*\n?/m,' ').replace(/\s+/g,' ').trim();
+  const nm=body.match(/\bName\s*:?\s*(@[^\s]+(?:\s+y\b)?)/i);
+  const customer=nm?.[1]||author;
+  const pay=body.match(/\b(?:Payment|Payement|Pay)\s*:?\s*([\d,.]+\s*(?:k\s*)?tek(?:\s+ceilings?)?)/i)?.[1]||'';
+  const start=body.search(/\b(?:Order\s+Alpha\s+Pair|all\s+pairs?\s+alpha|Paire\s*\+\s*1F|Pair\s+of|Pair\s+|Bronto\s+v\d+)\b/i);
+  const stop=body.search(/\b(?:Payment|Payement|Pay)\s*:?\s*[\d,.]+/i);
+  const order=start>=0?body.slice(start,stop>start?stop:undefined):'';
+  const note=order.match(/\(Missing[^)]*\)/i)?.[0]||'';
+  const filtered=order.replace(/\(Missing[^)]*\)/gi,' ');
+  const hits=[...filtered.matchAll(pattern)];
+  const items=hits.map((h,i)=>{
+   const before=filtered.slice(i?hits[i-1].index+hits[i-1][0].length:0,h.index);
+   const after=filtered.slice(h.index+h[0].length,hits[i+1]?.index??filtered.length);
+   const extra=/(?:paire|pair)\s*\+\s*1\s*f\s*$/i.test(before)||/^(?:\s*paire\s*\+\s*1\s*f)/i.test(after);
+   const optional=/\+\s*1\s*f\s*if available/i.test(after);
+   const key=normalizedCreature(h[0]),canonical=aliases[key]||canonicalCreature(h[0]);
+   const v=after.match(/^\s*(v\d+)\b/i);
+   const name=v&&!/\bv\d+$/i.test(canonical)?canonical+' '+v[1].toUpperCase():canonical;
+   return ' '+name+', 1, '+(extra&&!optional?2:1)+(optional?', 1':'');
+  });
+  return '### '+author+' '+date+'\nName: '+customer+'\nOrder:\n'+items.join('\n')+'\nPayment: '+pay+(note?'\nNote: '+note:'');
+ }).join('\n');
+}
+
 function parseOrderText(text){
- const source=String(text||'').replace(/\r/g,'').replace(/([^\n])\s+(?=Order\s+(?:Alpha\s+)?Pairs?\s*[:：])/gi,'$1\n').replace(/\bOrder\s+(Alpha\s+)?Pairs?\s*[:：]/gi,(_,alpha)=>'Order:\n'+(alpha?'Alpha ':'')+'Pair\n');
- const header=/^#{1,6}\s+[^\n]*?(?:\[[^\]]+\]\([^)]+\)|\b(?:today|yesterday|\d{1,2}\/\d{1,2}(?:\/\d{2,4})?)\b)/i;
+ text=normalizeDiscordBatch(text);
+ const source=String(text||'').replace(/\r/g,'').replace(/\[Role icon,[^\]]*\]\([^)]+\)/gi,'').replace(/^\s*\d+\.\s*$/gm,'').replace(/\*\*/g,'').replace(/\\\n/g,'\n').replace(/([^\n])\s+(?=Order\s+(?:Alpha\s+)?Pairs?\s*[:：])/gi,'$1\n').replace(/\bOrder\s+(Alpha\s+)?Pairs?\s*[:：]/gi,(_,alpha)=>'Order:\n'+(alpha?'Alpha ':'')+'Pair\n');
+ const header=/^#{1,6}\s+[^\n]*?(?:\b(?:Verified|Trusted|today|yesterday|\d{1,2}\/\d{1,2}(?:\/\d{2,4})?)\b)/i;
  const blocks=[];let block=[];
  for(const line of source.split('\n')){
   if(header.test(line.trim())&&block.some(x=>x.trim())){blocks.push(block.join('\n'));block=[]}
@@ -79,16 +118,16 @@ function parseOrderText(text){
   const add=(name,m,f,optionalF=0)=>{name=canonicalCreature(name.replace(/^[•*\-\s]+/,'').replace(/\s*(?:alpha|white)\s*$/i,'').trim());if(name)items.push({name,m,f,optionalF})};
   for(let line of lines){
    if(header.test(line))continue;
-   const fields=[...line.matchAll(/\b(Name|Customer|Payment|Pay|Trader|Order)\s*[:：]\s*/gi)];
+   const fields=[...line.matchAll(/\b(Name|Customer|Payment|Payement|Pay|Trader|Order(?:\s+Alpha\s+Pairs?)?)\s*[:：]?\s+/gi)];
    if(fields.length){
     for(let i=0;i<fields.length;i++){
      const key=fields[i][1].toLowerCase(),value=line.slice(fields[i].index+fields[i][0].length,i+1<fields.length?fields[i+1].index:line.length).trim();
      if(key==='name'||key==='customer')customer=value.replace(/^<@!?(\d+)>$/,'$1')||customer;
-     else if(key==='payment'||key==='pay')payment=value;
+     else if(key==='payment'||key==='pay'||key==='payement')payment=value;
      else if(key==='trader')trader=value;
-     else if(key==='order'&&value)line=value;
+     else if(key.startsWith('order')&&value)line=value;
     }
-    if(!fields.some(x=>x[1].toLowerCase()==='order'))continue;
+    if(!fields.some(x=>x[1].toLowerCase().startsWith('order')))continue;
    }
    if(/^(?:order|alpha|white|rainbow)\s*[:：]?\s*$/i.test(line))continue;
    if(/^(?:order\s+)?(?:alpha\s+)?pairs?\s*[:：]?\s*$/i.test(line)){pairMode=true;continue;}

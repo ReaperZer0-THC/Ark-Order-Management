@@ -4,6 +4,7 @@ on:
     branches:
       - development/creature-registry-import-v4
       - fix/alpha-pair-import
+      - fix/discord-batch-import
   workflow_dispatch:
 jobs:
   acceptance:
