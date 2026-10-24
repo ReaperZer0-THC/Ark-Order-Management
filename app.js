@@ -57,7 +57,7 @@ $('cancel-edit').onclick=()=>{editId=null;render()};el.querySelectorAll('[data-e
 function deleteAllocations(id){for(const k of Object.keys(state.allocation))if(k.startsWith(id+':'))delete state.allocation[k]}
 
 function normalizeDiscordBatch(input){
- const aliases={'kakinos':'Karkinos','dreadnoutus':'Dreadnoughtus','gigadesmo':'Gigadesmodus','yuti':'Yutyrannus','argie':'Argentavis','anky':'Ankylosaurus','rockdrake':'Rock Drake','wooly rhino':'Woolly Rhino','normal giga':'Giganotosaurus','ab spino':'Aberrant Spino','fire wyv':'Fire Wyvern','light wyv':'Lightning Wyvern','ice wyv':'Ice Wyvern','gasbag':'Gasbags'};
+ const aliases={'kakinos':'Karkinos','dreadnoutus':'Dreadnoughtus','gigadesmo':'Gigadesmodus','yuti':'Yutyrannus','argie':'Argentavis','anky':'Ankylosaurus','rockdrake':'Rock Drake','wooly rhino':'Woolly Rhino','normal giga':'Giganotosaurus','ab spino':'Aberrant Spino','fire wyv':'Fire Wyvern','light wyv':'Lightning Wyvern','ice wyv':'Ice Wyvern','gasbag':'Gasbags','bronto v2':'Brontosaurus V2'};
  const esc=x=>x.replace(/[^a-z0-9 ]/gi,c=>'\\'+c).replace(/\s+/g,'\\s+');
  const all=[...(creatureRegistry.species||[]).map(x=>x.name),...Object.keys(creatureRegistry.aliases||{}),...Object.keys(aliases)];
  const names=[...new Set(all)].sort((a,b)=>b.length-a.length);
