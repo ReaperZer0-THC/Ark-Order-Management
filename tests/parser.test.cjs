@@ -7,6 +7,8 @@ const end=source.indexOf('function renderImport(el){');
 assert(start>=0&&end>start,'Parser function not found');
 const parse=Function('canonicalCreature','creatureRegistry','creatureKnown',source.slice(start,end)+';return parseOrderText')(x=>x,{species:[]},()=>true);
 const cases=[
+ {name:'Samy Alpha Pair heading',text:'Name: **@Samy** y\nOrder Alpha Pair:\nBurrowbuck\nCarcharodontosaurus\nIce Wyvern\nGiganotosaurus\nReaper v2\nPayment: 1000 Tek Ceilings',count:1,totals:[10]},
+ {name:'Samy compact Alpha Pair order',text:'Name: @Samy y Order Alpha Pair: Burrowbuck\nCarcharodontosaurus\nIce Wyvern\nGiganotosaurus\nReaper v2\nPayment: 1000 Tek Ceilings',count:1,totals:[10]},
  {name:'separate same-customer posts',text:'### ZOUFRIYA948[Member](https://discord.com) 10/19/2026\nName: ZOUFRIYA948\nOrder:\nPaire +1F Basilisk\nPaire +1F Ankylosaurus\nPayment: 1500 Tek\n### ZOUFRIYA948[Member](https://discord.com) 10/21/2026\nName: ZOUFRIYA948\nOrder:\nPaire +1F Snow Owl\nPayment: 1500 Tek',count:2,totals:[6,3]},
  {name:'optional females before and after names',text:'Name: Duster\nOrder:\nPair +1F if available Aberrant Spino\nPair +1F Karkinos if available\nPayment: 1500 Tek',count:1,totals:[4],optional:[2]},
  {name:'compressed metadata fields',text:'Name: Arinn Order: Fire Wyvern pair Payment: 1000 Tek',count:1,totals:[2]},
