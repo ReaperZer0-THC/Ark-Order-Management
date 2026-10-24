@@ -3,6 +3,7 @@ on:
   push:
     branches:
       - development/creature-registry-import-v4
+      - fix/collection-toggle
       - fix/alpha-pair-import
   workflow_dispatch:
 jobs:
